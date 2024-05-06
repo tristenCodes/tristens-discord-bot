@@ -37,8 +37,8 @@ const data = new SlashCommandBuilder()
           value: 'minutely',
         },
         {
-          name: 'Currently',
-          value: 'currently',
+          name: 'Current',
+          value: 'current',
         },
         {
           name: 'Alerts',
@@ -51,6 +51,7 @@ const execute = async (interaction) => {
   const zipcode = interaction.options.getString('zipcode');
   const countryCode = interaction.options.getString('country_code');
   const forecastType = interaction.options.getString('forecast_type');
+  console.log('🚀 ~ execute ~ forecastType:', forecastType);
 
   const weatherService = new WeatherService();
 
@@ -61,7 +62,12 @@ const execute = async (interaction) => {
     forecastType
   );
 
-  await interaction.reply('complete');
+  console.log(weatherInfo);
+
+  await interaction.reply({
+    content: JSON.stringify(weatherInfo),
+    ephemeral: true,
+  });
 };
 
 module.exports = {

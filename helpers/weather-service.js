@@ -1,5 +1,8 @@
+const { getTimeFromUTC } = require('./utils');
+
 class WeatherService {
   base_url = process.env.OPENWEATHER_URL;
+  availableForecastTypes = ['daily', 'hourly', 'minutely', 'current', 'alerts'];
 
   /**
    * @param {string} zipcode
@@ -25,14 +28,12 @@ class WeatherService {
    *
    * @param {number} lat - lattitude for location
    * @param {number} lon - longitude for location
-   * @param {string[]} forecastType - hourly, minutely, or daily when fetching data
+   * @param {string[]} forecastType - hourly, minutely, daily, alerts, or data
    * @returns
    */
   async getWeatherDataForLatLon(lat, lon, forecastType) {
-    const availableForecastTypes = ['daily', 'hourly', 'minutely', 'currently'];
-
     // return an array that will exclude all info except the necessary one
-    const exclusions = availableForecastTypes.filter(
+    const exclusions = this.availableForecastTypes.filter(
       (forecast) => forecast !== forecastType
     );
 
@@ -42,13 +43,16 @@ class WeatherService {
       }&units=imperial&appid=${process.env.OPENWEATHER_APIKEY}`
     );
     const weatherInfo = await weatherResponse.json();
-    console.log(weatherInfo);
+    console.log(
+      '🚀 ~ WeatherService ~ getWeatherDataForLatLon ~ weatherInfo:',
+      weatherInfo
+    );
     const weatherInfoForCategory = weatherInfo[forecastType];
     console.log(
       '🚀 ~ WeatherService ~ getWeatherDataForLatLon ~ weatherInfoForCategory:',
-      weatherInfoForCategory
+      weatherInfoForCategory,
+      forecastType
     );
-
     let data;
 
     switch (forecastType) {
@@ -65,34 +69,52 @@ class WeatherService {
         data = this.parseCurrentWeather(weatherInfoForCategory);
         break;
     }
-
-    console.log(data);
     return data;
   }
 
-  /**
-   *
-   * @param {string} forecastType - available options: 'hourly', 'minutely', 'daily'
-   */
-  async getAlertsForLocation(lat, lon) {
-    const exclusions = ['daily', 'hourly', 'minutely', 'currently'];
-    const weatherResponse = await fetch(
-      `${this.base_url}/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=${
-        exclusions && [...exclusions].join(',')
-      }&units=imperial&appid=${process.env.OPENWEATHER_APIKEY}`
-    );
-    const data = await weatherResponse.json();
-    return data?.alerts;
+  //   /**
+  //    *
+  //    * @param {string} forecastType - available options: 'hourly', 'minutely', 'daily'
+  //    */
+  //   async getAlertsForLocation(lat, lon) {
+  //     const exclusions = ['daily', 'hourly', 'minutely', 'currently', 'alerts'];
+  //     const weatherResponse = await fetch(
+  //       `${this.base_url}/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=${
+  //         exclusions && [...exclusions].join(',')
+  //       }&units=imperial&appid=${process.env.OPENWEATHER_APIKEY}`
+  //     );
+  //     const data = await weatherResponse.json();
+  //     return data?.alerts;
+  //   }
+
+  parseDailyWeather(data) {
+    if (!data) return 'no data';
+    const dailyInfo = data.map((section) => {
+      const extractedInfo = {
+        dt: getTimeFromUTC(section.dt),
+        high: section?.temp?.max,
+        low: section?.temp?.min,
+        weather: section?.weather?.main,
+        weatherDescription: section?.weather?.description,
+      };
+      return extractedInfo;
+    });
+    return dailyInfo;
   }
 
-  parseDailyWeather() {}
-
   parseHourlyWeather(data) {
+    if (!data) return 'no data';
     const hourlyInfo = data.map((section) => {
-      const utcString = new Date(section.dt * 1000).toUTCString();
       const extractedInfo = {
-        dt: utcString.slice(17, 22),
+        dt: getTimeFromUTC(section.dt),
         temp: section.temp,
+        feelsLike: section.feels_like,
+        weather: section.weather.map((weatherSection) => {
+          return {
+            main: weatherSection.main,
+            description: weatherSection.description,
+          };
+        }),
       };
 
       return extractedInfo;
@@ -100,9 +122,31 @@ class WeatherService {
     return hourlyInfo;
   }
 
-  parseMinutelyWeather() {}
+  parseMinutelyWeather(data) {
+    if (!data) return 'no data';
+    const minuteInfo = data.map((section) => {
+      return {
+        dt: getTimeFromUTC(section.dt),
+        precipitation: `${Math.round(section.precipitation * 100)}%`,
+      };
+    });
+    return minuteInfo;
+  }
 
-  parseCurrentWeather() {}
+  parseCurrentWeather(data) {
+    if (!data) return 'no data';
+    const currentInfo = {
+      dt: getTimeFromUTC(data.dt),
+      weather: data.weather.map((section) => {
+        return {
+          main: section?.main,
+          description: section?.description,
+        };
+      }),
+      rain: data?.rain ?? "no rain",
+    };
+    return currentInfo;
+  }
 }
 
 module.exports = WeatherService;
