@@ -51,7 +51,6 @@ const execute = async (interaction) => {
   const zipcode = interaction.options.getString('zipcode');
   const countryCode = interaction.options.getString('country_code');
   const forecastType = interaction.options.getString('forecast_type');
-  console.log('🚀 ~ execute ~ forecastType:', forecastType);
 
   const weatherService = new WeatherService();
 
@@ -62,7 +61,7 @@ const execute = async (interaction) => {
     forecastType
   );
 
-  console.log(weatherInfo);
+  console.log('weather info: ', weatherInfo);
 
   await interaction.reply({
     content: JSON.stringify(weatherInfo),

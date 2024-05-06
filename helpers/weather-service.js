@@ -43,16 +43,7 @@ class WeatherService {
       }&units=imperial&appid=${process.env.OPENWEATHER_APIKEY}`
     );
     const weatherInfo = await weatherResponse.json();
-    console.log(
-      '🚀 ~ WeatherService ~ getWeatherDataForLatLon ~ weatherInfo:',
-      weatherInfo
-    );
     const weatherInfoForCategory = weatherInfo[forecastType];
-    console.log(
-      '🚀 ~ WeatherService ~ getWeatherDataForLatLon ~ weatherInfoForCategory:',
-      weatherInfoForCategory,
-      forecastType
-    );
     let data;
 
     switch (forecastType) {
