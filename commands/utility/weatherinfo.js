@@ -35,6 +35,14 @@ const data = new SlashCommandBuilder()
         {
           name: 'Minutely',
           value: 'minutely',
+        },
+        {
+          name: 'Currently',
+          value: 'currently',
+        },
+        {
+          name: 'Alerts',
+          value: 'alerts',
         }
       )
   );
@@ -42,14 +50,17 @@ const data = new SlashCommandBuilder()
 const execute = async (interaction) => {
   const zipcode = interaction.options.getString('zipcode');
   const countryCode = interaction.options.getString('country_code');
+  const forecastType = interaction.options.getString('forecast_type');
 
   const weatherService = new WeatherService();
+
   const area = await weatherService.convertEntryToLatLon(zipcode, countryCode);
   const weatherInfo = await weatherService.getWeatherDataForLatLon(
     area.lat,
-    area.lon
+    area.lon,
+    forecastType
   );
-  console.log(weatherInfo);
+
   await interaction.reply('complete');
 };
 
