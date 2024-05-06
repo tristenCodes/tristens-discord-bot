@@ -64,7 +64,7 @@ const execute = async (interaction) => {
   console.log('weather info: ', weatherInfo);
 
   await interaction.reply({
-    content: JSON.stringify(weatherInfo),
+    content: weatherInfo,
     ephemeral: true,
   });
 };
