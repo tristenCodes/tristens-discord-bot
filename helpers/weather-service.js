@@ -1,38 +1,6 @@
-const {
-  parseCurrentWeather,
-  parseDailyWeather,
-  parseHourlyWeather,
-  parseMinutelyWeather,
-  parseAlertData,
-} = require('./utils');
+const { parseWeatherData } = require('./parsing-utils');
 
 const mockApiCall = JSON.parse(process.env.MOCK_API_CALL);
-
-const parseWeatherData = (forecastType, weatherInfo) => {
-  const timezoneOffset = weatherInfo?.timezone_offset;
-  let parsedData;
-  switch (forecastType) {
-    case 'daily':
-      parsedData = parseDailyWeather(weatherInfo);
-      break;
-    case 'hourly':
-      parsedData = parseHourlyWeather(weatherInfo, timezoneOffset);
-      break;
-    case 'minutely':
-      parsedData = parseMinutelyWeather(weatherInfo, timezoneOffset);
-      break;
-    case 'current':
-      parsedData = parseCurrentWeather(weatherInfo, timezoneOffset);
-      break;
-    case 'alerts':
-      parsedData = parseAlertData(weatherInfo?.alerts, timezoneOffset);
-      if (!parsedData) {
-        parsedData = 'There are no alerts for your area at this moment.';
-      }
-      break;
-  }
-  return parsedData;
-};
 
 class WeatherService {
   base_url = process.env.OPENWEATHER_URL;
@@ -87,12 +55,11 @@ class WeatherService {
       const data = parseWeatherData(forecastType, weatherInfo);
       return data;
     } else {
+      console.log('test data');
       const weatherInfo = require('../testdata.json');
       const data = parseWeatherData(forecastType, weatherInfo);
       return data;
     }
-
-    return data;
   }
 }
 

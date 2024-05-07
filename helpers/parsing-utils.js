@@ -1,45 +1,10 @@
-const MAX_RESPONSE_LENGTH = 2000;
-
-/**
- *
- * @param {number} unixTimestamp
- * @param {Intl.DateTimeFormatOptions} options
- * @returns
- */
-const getDateTimeFromUnixTimeStamp = (
-  unixTimestamp,
-  timezoneOffset,
-  options
-) => {
-  const date = new Date(unixTimestamp * 1000);
-  if (!timezoneOffset) {
-    console.log(new Intl.DateTimeFormat('en-US', options).format(date));
-    return new Intl.DateTimeFormat('en-US', options).format(date);
-  }
-  const localDate = new Date(date.getTime() + timezoneOffset * 1000);
-  return new Intl.DateTimeFormat('en-US', options).format(localDate);
-};
-
-const getTimeFromUnixTimestamp = (unixTimestamp) => {
-  const utcString = new Date(unixTimestamp * 1000).toUTCString();
-  return utcString.slice(17, 22);
-};
-
-const getDayFromUnixTimestamp = (unixTimestamp) => {
-  const date = new Date(unixTimestamp * 1000);
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(date);
-};
-
-/**
- *
- * @param {string} originalString
- * @returns
- */
-const trimStringLength = (originalString, length = MAX_RESPONSE_LENGTH) => {
-  const trimmedString = originalString.substring(0, length - 3);
-  const newString = trimmedString + '...';
-  return newString;
-};
+const { MAX_RESPONSE_LENGTH } = require('../constants/constants');
+const {
+  getDateTimeFromUnixTimeStamp,
+  getDayFromUnixTimestamp,
+  getTimezoneOffsetFromWeatherData,
+  trimStringLength,
+} = require('./time-utils');
 
 function parseDailyWeather(data) {
   if (!data) return '**no data available**';
@@ -61,11 +26,14 @@ function parseDailyWeather(data) {
     return displayText;
   });
 
-  return dailyInfo.join('\n');
+  const alertData = parseAlertData(data) ?? '';
+
+  return `${dailyInfo.join('\n')}\n${alertData}`;
 }
 
-function parseHourlyWeather(data, timezoneOffset) {
+function parseHourlyWeather(data) {
   if (!data) return '**no data available**';
+  const timezoneOffset = getTimezoneOffsetFromWeatherData(data);
   const hourlyInfo = data.hourly.map((section) => {
     const extractedInfo = {
       dt: getDateTimeFromUnixTimeStamp(section.dt, timezoneOffset, {
@@ -88,8 +56,9 @@ function parseHourlyWeather(data, timezoneOffset) {
     : hourlyInfo.join('\n');
 }
 
-function parseMinutelyWeather(data, timezoneOffset) {
+function parseMinutelyWeather(data) {
   if (!data) return '**no data available**';
+  const timezoneOffset = getTimezoneOffsetFromWeatherData(data);
   const minuteInfo = data.minutely.map((section) => {
     const extractedInfo = {
       dt: getDateTimeFromUnixTimeStamp(section.dt, timezoneOffset, {
@@ -98,16 +67,22 @@ function parseMinutelyWeather(data, timezoneOffset) {
         minute: '2-digit',
         timeZone: 'UTC',
       }),
-      precipitation: `${Math.round(section.precipitation * 100)}%`,
+      precipitation: `${Math.round(section.precipitation * 10)}%`,
     };
     const displayText = `**${extractedInfo.dt}**\nPrecipitation: ${extractedInfo.precipitation}\n`;
     return displayText;
   });
-  return trimStringLength(minuteInfo.join('\n'), 1000);
+  return trimStringLength(
+    `*Minute forecast does not give you weather alerts!*\n\n${minuteInfo.join(
+      '\n'
+    )}`,
+    1000
+  );
 }
 
-function parseCurrentWeather(data, timezoneOffset) {
+function parseCurrentWeather(data) {
   if (!data) return '**no data available**';
+  const timezoneOffset = getTimezoneOffsetFromWeatherData(data);
   const currentInfo = {
     dt: getDateTimeFromUnixTimeStamp(data.current.dt, timezoneOffset, {
       hour: '2-digit',
@@ -115,10 +90,10 @@ function parseCurrentWeather(data, timezoneOffset) {
       hour12: true,
       timeZone: 'UTC',
     }),
-    weather: `${data.current.weather[0]?.main} - ${data.current.weather[0]?.description}`,
+    weather: `${data.current.weather[0]?.main} - ${data.current.weather[0]?.description}\n`,
   };
-  const alertData = parseAlertData(data.alerts);
-  const displayText = `**${currentInfo.dt}**\n${currentInfo.weather}\n\n${
+  const alertData = parseAlertData(data);
+  const displayText = `**${currentInfo.dt}**\n${currentInfo.weather}\n${
     alertData ? alertData : ''
   }`;
   return displayText.length > MAX_RESPONSE_LENGTH
@@ -126,8 +101,9 @@ function parseCurrentWeather(data, timezoneOffset) {
     : displayText;
 }
 
-function parseAlertData(alerts, timezoneOffset) {
-  let alertInfo = alerts?.map((alert) => {
+function parseAlertData(data) {
+  const timezoneOffset = getTimezoneOffsetFromWeatherData(data);
+  let alertInfo = data?.alerts?.map((alert) => {
     const alertObjectInfo = {
       startDt: getDateTimeFromUnixTimeStamp(alert.start, timezoneOffset, {
         day: '2-digit',
@@ -160,14 +136,31 @@ function parseAlertData(alerts, timezoneOffset) {
     : alertInfo;
 }
 
+const parseWeatherData = (forecastType, weatherInfo) => {
+  let parsedData;
+  switch (forecastType) {
+    case 'daily':
+      parsedData = parseDailyWeather(weatherInfo);
+      break;
+    case 'hourly':
+      parsedData = parseHourlyWeather(weatherInfo);
+      break;
+    case 'minutely':
+      parsedData = parseMinutelyWeather(weatherInfo);
+      break;
+    case 'current':
+      parsedData = parseCurrentWeather(weatherInfo);
+      break;
+    case 'alerts':
+      parsedData = parseAlertData(weatherInfo);
+      if (!parsedData) {
+        parsedData = 'There are no alerts for your area at this moment.';
+      }
+      break;
+  }
+  return parsedData;
+};
+
 module.exports = {
-  getTimeFromUTC: getTimeFromUnixTimestamp,
-  getDateTimeFromUnixTimeStamp,
-  getDayFromUnixTimestamp,
-  trimStringToMaxLength: trimStringLength,
-  parseCurrentWeather,
-  parseDailyWeather,
-  parseHourlyWeather,
-  parseMinutelyWeather,
-  parseAlertData,
+  parseWeatherData,
 };
